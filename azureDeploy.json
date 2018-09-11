@@ -1,0 +1,592 @@
+{
+    "$schema": "https://schema.management.azure.com/schemas/2015-01-01/deploymentTemplate.json#",
+    "contentVersion": "1.0.0.0",
+    "parameters": {
+	    "location": {
+		    "type": "string",
+            "defaultValue": "Central US",
+            "allowedValues": [
+                "Central US",
+                "France Central",
+				"East US 2",
+				"West Europe",
+				"Southeast Asia"
+            ],
+            "metadata": {
+                "description": "Pick the region where you will deploy your VM-Series that supports Availability Zones"
+            }
+	    },
+        "zone": {
+            "type": "string",
+            "metadata": {
+                "description": "Select the availability zone you would like to deploy the VM-Series into"
+            },
+            "defaultValue": "1",
+            "allowedValues": [
+                "1",
+                "2",
+				"3"
+            ]
+        },
+        "VM-Series_Name": {
+            "type": "String",
+            "metadata": {
+                "description": "Name of the VM-Series you will create"
+            }
+        },
+        "Admin_Username": {
+            "type": "String",
+            "defaultValue": "pandemo",
+            "metadata": {
+                "description": "Name of the VM-Series admin"
+            }
+        },
+        "Admin_Password": {
+            "type": "secureString",
+            "defaultValue": "Dem0pa$$w0rd",
+            "metadata": {
+                "description": "Password for the VM-Series admin"
+            }
+        },
+        "VNET_Name": {
+            "type": "String",
+            "metadata": {
+                "description": "Name of the Virtual Network you will create"
+            }
+        },
+        "VNET_CIDR": {
+            "type": "String",
+            "defaultValue": "10.5.0.0/16",
+            "metadata": {
+                "description": "CIDR block for the entire virtual network"
+            }
+        },
+        "MGT_Subnet": {
+            "type": "String",
+            "defaultValue": "10.5.0.0/24",
+            "metadata": {
+                "description": "Subnet for the mgmt interface"
+            }
+        },
+        "Untrust_Subnet": {
+            "type": "String",
+            "defaultValue": "10.5.1.0/24",
+            "metadata": {
+                "description": "Subnet for the Untrust interface"
+            }
+        },
+        "Trust_Subnet": {
+            "type": "String",
+            "defaultValue": "10.5.2.0/24",
+            "metadata": {
+                "description": "Subnet for the Untrust interface"
+            }
+        },
+        "PublicIP1": {
+            "type": "String",
+            "metadata": {
+                "description": "Public IP Address for MGT Interface"
+            }
+        },
+        "PublicIP2": {
+            "type": "String",
+            "metadata": {
+                "description": "Public IP Address for Eth0 Interface"
+            }			
+        },
+        "Default_NSG": {
+            "type": "String",
+            "metadata": {
+                "description": "Network Security Group for Management Access"
+            }	
+        },
+        "Default_NSG_SourceIP": {
+            "type": "string",
+            "defaultValue": "1.1.1.1/1",
+            "metadata": {
+                "description": "Network Security Group Source IP for Management Access"
+            }	
+        },
+        "Management_Interface": {
+            "type": "String",
+            "metadata": {
+                "description": "MGT interface name"
+            }
+        },
+        "Untrust_Interface": {
+            "type": "String",
+            "metadata": {
+                "description": "Untrust interface name"
+            }
+        },
+        "Trust_Interface": {
+            "type": "String",
+            "metadata": {
+                "description": "Trust interface name"
+            }
+        }
+    },
+    "variables": {
+	},
+    "resources": [
+        {
+            "type": "Microsoft.Compute/virtualMachines",
+            "name": "[parameters('VM-Series_Name')]",
+            "apiVersion": "2017-12-01",
+            "location": "[parameters('location')]",
+            "plan": {
+                "name": "bundle2",
+                "product": "vmseries1",
+                "publisher": "paloaltonetworks"
+            },
+            "scale": null,
+            "properties": {
+                "hardwareProfile": {
+                    "vmSize": "Standard_D3_v2"
+                },
+                "storageProfile": {
+                    "imageReference": {
+                        "publisher": "paloaltonetworks",
+                        "offer": "vmseries1",
+                        "sku": "bundle2",
+                        "version": "latest"
+                    },
+                    "osDisk": {
+                        "osType": "Linux",
+                        "name": "[concat(parameters('VM-Series_Name'),'_OsDisk_1_7c6d8de3ad274503967280fbf41056a4')]",
+                        "createOption": "FromImage",
+                        "caching": "ReadWrite",
+                        "managedDisk": {
+                            "storageAccountType": "Standard_LRS"
+                        },
+                        "diskSizeGB": 60
+                    },
+                    "dataDisks": []
+                },
+                "osProfile": {
+                    "computerName": "[parameters('VM-Series_Name')]",
+                    "adminUsername": "[parameters('Admin_Username')]",
+					"adminPassword": "[parameters('Admin_Password')]",
+                    "linuxConfiguration": {
+                        "disablePasswordAuthentication": false
+                    },
+                    "secrets": []
+                },
+                "networkProfile": {
+                    "networkInterfaces": [
+                        {
+                            "id": "[resourceId('Microsoft.Network/networkInterfaces', parameters('Management_Interface'))]",
+                            "properties": {
+                                "primary": true
+                            }
+                        },
+                        {
+                            "id": "[resourceId('Microsoft.Network/networkInterfaces', parameters('Untrust_Interface'))]",
+                            "properties": {
+                                "primary": false
+                            }
+                        },
+                        {
+                            "id": "[resourceId('Microsoft.Network/networkInterfaces', parameters('Trust_Interface'))]",
+                            "properties": {
+                                "primary": false
+                            }
+                        }
+                    ]
+                }
+            },
+            "zones": [
+                "[parameters('zone')]"
+            ],
+            "dependsOn": [
+                "[resourceId('Microsoft.Network/networkInterfaces', parameters('Management_Interface'))]",
+                "[resourceId('Microsoft.Network/networkInterfaces', parameters('Untrust_Interface'))]",
+                "[resourceId('Microsoft.Network/networkInterfaces', parameters('Trust_Interface'))]"
+            ]
+        },
+        {
+            "type": "Microsoft.Network/networkInterfaces",
+            "name": "[parameters('Management_Interface')]",
+            "apiVersion": "2018-02-01",
+            "location": "[parameters('location')]",
+            "scale": null,
+            "properties": {
+                "ipConfigurations": [
+                    {
+                        "name": "ipconfig-mgmt",
+                        "properties": {
+                            "privateIPAddress": "10.5.0.4",
+                            "privateIPAllocationMethod": "Dynamic",
+                            "publicIPAddress": {
+                                "id": "[resourceId('Microsoft.Network/publicIPAddresses', parameters('PublicIP1'))]"
+                            },
+                            "subnet": {
+                                "id": "[concat(resourceId('Microsoft.Network/virtualNetworks', parameters('VNET_Name')), '/subnets/Mgmt')]"
+                            },
+                            "primary": true,
+                            "privateIPAddressVersion": "IPv4"
+                        }
+                    }
+                ],
+                "dnsSettings": {
+                    "dnsServers": [],
+                    "appliedDnsServers": [],
+                    "internalDomainNameSuffix": "z3xksmdd2nbutoibfrpmscvgqf.bx.internal.cloudapp.net"
+                },
+                "macAddress": "00-0D-3A-4D-A2-BA",
+                "enableAcceleratedNetworking": false,
+                "enableIPForwarding": false,
+                "primary": true
+            },
+            "dependsOn": [
+                "[resourceId('Microsoft.Network/publicIPAddresses', parameters('PublicIP1'))]",
+                "[resourceId('Microsoft.Network/virtualNetworks', parameters('VNET_Name'))]"
+            ]
+        },
+        {
+            "type": "Microsoft.Network/networkInterfaces",
+            "name": "[parameters('Untrust_Interface')]",
+            "apiVersion": "2018-02-01",
+            "location": "[parameters('location')]",
+            "scale": null,
+            "properties": {
+                "ipConfigurations": [
+                    {
+                        "name": "ipconfig-untrust",
+                        "properties": {
+                            "privateIPAddress": "10.5.1.4",
+                            "privateIPAllocationMethod": "Dynamic",
+                            "publicIPAddress": {
+                                "id": "[resourceId('Microsoft.Network/publicIPAddresses', parameters('PublicIP2'))]"
+                            },
+                            "subnet": {
+                                "id": "[concat(resourceId('Microsoft.Network/virtualNetworks', parameters('VNET_Name')), '/subnets/Untrust')]"
+                            },
+                            "primary": true,
+                            "privateIPAddressVersion": "IPv4"
+                        }
+                    }
+                ],
+                "dnsSettings": {
+                    "dnsServers": [],
+                    "appliedDnsServers": [],
+                    "internalDomainNameSuffix": "z3xksmdd2nbutoibfrpmscvgqf.bx.internal.cloudapp.net"
+                },
+                "macAddress": "00-0D-3A-4D-A4-2C",
+                "enableAcceleratedNetworking": false,
+                "enableIPForwarding": true,
+                "primary": false
+            },
+            "dependsOn": [
+                "[resourceId('Microsoft.Network/publicIPAddresses', parameters('PublicIP2'))]",
+                "[resourceId('Microsoft.Network/virtualNetworks', parameters('VNET_Name'))]"
+            ]
+        },
+        {
+            "type": "Microsoft.Network/networkInterfaces",
+            "name": "[parameters('Trust_Interface')]",
+            "apiVersion": "2018-02-01",
+            "location": "[parameters('location')]",
+            "scale": null,
+            "properties": {
+                "ipConfigurations": [
+                    {
+                        "name": "ipconfig-trust",
+                        "properties": {
+                            "privateIPAddress": "10.5.2.4",
+                            "privateIPAllocationMethod": "Dynamic",
+                            "subnet": {
+                                "id": "[concat(resourceId('Microsoft.Network/virtualNetworks', parameters('VNET_Name')), '/subnets/Trust')]"
+                            },
+                            "primary": true,
+                            "privateIPAddressVersion": "IPv4"
+                        }
+                    }
+                ],
+                "dnsSettings": {
+                    "dnsServers": [],
+                    "appliedDnsServers": [],
+                    "internalDomainNameSuffix": "z3xksmdd2nbutoibfrpmscvgqf.bx.internal.cloudapp.net"
+                },
+                "macAddress": "00-0D-3A-4D-AF-F0",
+                "enableAcceleratedNetworking": false,
+                "enableIPForwarding": true,
+                "primary": false
+            },
+            "dependsOn": [
+                "[resourceId('Microsoft.Network/virtualNetworks', parameters('VNET_Name'))]"
+            ]
+        },
+        {
+            "type": "Microsoft.Network/networkSecurityGroups",
+            "name": "[parameters('Default_NSG')]",
+            "apiVersion": "2018-02-01",
+            "location": "[parameters('location')]",
+            "scale": null,
+            "properties": {
+                "securityRules": [
+                    {
+                        "name": "Allow-Outside-From-IP",
+                        "properties": {
+                            "description": "Rule",
+                            "protocol": "*",
+                            "sourcePortRange": "*",
+                            "destinationPortRange": "*",
+                            "sourceAddressPrefix": "[parameters('Default_NSG_SourceIP')]",
+                            "destinationAddressPrefix": "*",
+                            "access": "Allow",
+                            "priority": 100,
+                            "direction": "Inbound",
+                            "sourcePortRanges": [],
+                            "destinationPortRanges": [],
+                            "sourceAddressPrefixes": [],
+                            "destinationAddressPrefixes": []
+                        }
+                    },
+                    {
+                        "name": "Allow-Intra",
+                        "properties": {
+                            "description": "Allow intra network traffic",
+                            "protocol": "*",
+                            "sourcePortRange": "*",
+                            "destinationPortRange": "*",
+                            "sourceAddressPrefix": "10.5.0.0/16",
+                            "destinationAddressPrefix": "*",
+                            "access": "Allow",
+                            "priority": 101,
+                            "direction": "Inbound",
+                            "sourcePortRanges": [],
+                            "destinationPortRanges": [],
+                            "sourceAddressPrefixes": [],
+                            "destinationAddressPrefixes": []
+                        }
+                    },
+                    {
+                        "name": "Default-Deny",
+                        "properties": {
+                            "description": "Default-Deny if we don't match Allow rule",
+                            "protocol": "*",
+                            "sourcePortRange": "*",
+                            "destinationPortRange": "*",
+                            "sourceAddressPrefix": "*",
+                            "destinationAddressPrefix": "*",
+                            "access": "Deny",
+                            "priority": 200,
+                            "direction": "Inbound",
+                            "sourcePortRanges": [],
+                            "destinationPortRanges": [],
+                            "sourceAddressPrefixes": [],
+                            "destinationAddressPrefixes": []
+                        }
+                    }
+                ],
+                "defaultSecurityRules": [
+                    {
+                        "name": "AllowVnetInBound",
+                        "properties": {
+                            "description": "Allow inbound traffic from all VMs in VNET",
+                            "protocol": "*",
+                            "sourcePortRange": "*",
+                            "destinationPortRange": "*",
+                            "sourceAddressPrefix": "VirtualNetwork",
+                            "destinationAddressPrefix": "VirtualNetwork",
+                            "access": "Allow",
+                            "priority": 65000,
+                            "direction": "Inbound",
+                            "sourcePortRanges": [],
+                            "destinationPortRanges": [],
+                            "sourceAddressPrefixes": [],
+                            "destinationAddressPrefixes": []
+                        }
+                    },
+                    {
+                        "name": "AllowAzureLoadBalancerInBound",
+                        "properties": {
+                            "description": "Allow inbound traffic from azure load balancer",
+                            "protocol": "*",
+                            "sourcePortRange": "*",
+                            "destinationPortRange": "*",
+                            "sourceAddressPrefix": "AzureLoadBalancer",
+                            "destinationAddressPrefix": "*",
+                            "access": "Allow",
+                            "priority": 65001,
+                            "direction": "Inbound",
+                            "sourcePortRanges": [],
+                            "destinationPortRanges": [],
+                            "sourceAddressPrefixes": [],
+                            "destinationAddressPrefixes": []
+                        }
+                    },
+                    {
+                        "name": "DenyAllInBound",
+                        "properties": {
+                            "description": "Deny all inbound traffic",
+                            "protocol": "*",
+                            "sourcePortRange": "*",
+                            "destinationPortRange": "*",
+                            "sourceAddressPrefix": "*",
+                            "destinationAddressPrefix": "*",
+                            "access": "Deny",
+                            "priority": 65500,
+                            "direction": "Inbound",
+                            "sourcePortRanges": [],
+                            "destinationPortRanges": [],
+                            "sourceAddressPrefixes": [],
+                            "destinationAddressPrefixes": []
+                        }
+                    },
+                    {
+                        "name": "AllowVnetOutBound",
+                        "properties": {
+                            "description": "Allow outbound traffic from all VMs to all VMs in VNET",
+                            "protocol": "*",
+                            "sourcePortRange": "*",
+                            "destinationPortRange": "*",
+                            "sourceAddressPrefix": "VirtualNetwork",
+                            "destinationAddressPrefix": "VirtualNetwork",
+                            "access": "Allow",
+                            "priority": 65000,
+                            "direction": "Outbound",
+                            "sourcePortRanges": [],
+                            "destinationPortRanges": [],
+                            "sourceAddressPrefixes": [],
+                            "destinationAddressPrefixes": []
+                        }
+                    },
+                    {
+                        "name": "AllowInternetOutBound",
+                        "properties": {
+                            "description": "Allow outbound traffic from all VMs to Internet",
+                            "protocol": "*",
+                            "sourcePortRange": "*",
+                            "destinationPortRange": "*",
+                            "sourceAddressPrefix": "*",
+                            "destinationAddressPrefix": "Internet",
+                            "access": "Allow",
+                            "priority": 65001,
+                            "direction": "Outbound",
+                            "sourcePortRanges": [],
+                            "destinationPortRanges": [],
+                            "sourceAddressPrefixes": [],
+                            "destinationAddressPrefixes": []
+                        }
+                    },
+                    {
+                        "name": "DenyAllOutBound",
+                        "properties": {
+                            "description": "Deny all outbound traffic",
+                            "protocol": "*",
+                            "sourcePortRange": "*",
+                            "destinationPortRange": "*",
+                            "sourceAddressPrefix": "*",
+                            "destinationAddressPrefix": "*",
+                            "access": "Deny",
+                            "priority": 65500,
+                            "direction": "Outbound",
+                            "sourcePortRanges": [],
+                            "destinationPortRanges": [],
+                            "sourceAddressPrefixes": [],
+                            "destinationAddressPrefixes": []
+                        }
+                    }
+                ]
+            },
+            "dependsOn": []
+        },
+        {
+            "type": "Microsoft.Network/publicIPAddresses",
+            "sku": {
+                "name": "Basic",
+                "tier": "Regional"
+            },
+            "name": "[parameters('PublicIP1')]",
+            "apiVersion": "2018-02-01",
+            "location": "[parameters('location')]",
+            "scale": null,
+            "properties": {
+                "ipAddress": "137.117.58.141",
+                "publicIPAddressVersion": "IPv4",
+                "publicIPAllocationMethod": "Static",
+                "idleTimeoutInMinutes": 4,
+                "dnsSettings": {
+                    "domainNameLabel": "[parameters('PublicIP1')]",
+                    "fqdn": "[concat(parameters('PublicIP1'),'.eastus.cloudapp.azure.com')]"
+                },
+                "ipTags": []
+            },
+            "zones": [
+                "[parameters('zone')]"
+            ],
+            "dependsOn": []
+        },
+        {
+            "type": "Microsoft.Network/publicIPAddresses",
+            "sku": {
+                "name": "Basic",
+                "tier": "Regional"
+            },
+            "name": "[parameters('PublicIP2')]",
+            "apiVersion": "2018-02-01",
+            "location": "[parameters('location')]",
+            "scale": null,
+            "properties": {
+                "ipAddress": "40.87.43.15",
+                "publicIPAddressVersion": "IPv4",
+                "publicIPAllocationMethod": "Static",
+                "idleTimeoutInMinutes": 4,
+                "dnsSettings": {
+                    "domainNameLabel": "[parameters('PublicIP2')]",
+                    "fqdn": "[concat(parameters('PublicIP2'),'.eastus.cloudapp.azure.com')]"
+                },
+                "ipTags": []
+            },
+            "zones": [
+                "[parameters('zone')]"
+            ],
+            "dependsOn": []
+        },
+        {
+            "type": "Microsoft.Network/virtualNetworks",
+            "name": "[parameters('VNET_Name')]",
+            "apiVersion": "2018-02-01",
+            "location": "[parameters('location')]",
+            "scale": null,
+            "properties": {
+                "addressSpace": {
+                    "addressPrefixes": [
+                        "[parameters('VNET_CIDR')]"
+                    ]
+                },
+                "subnets": [
+                    {
+                        "name": "Mgmt",
+                        "properties": {
+                            "addressPrefix": "[parameters('MGT_Subnet')]",
+                            "networkSecurityGroup": {
+                                "id": "[resourceId('Microsoft.Network/networkSecurityGroups', parameters('Default_NSG'))]"
+                            }
+                        }
+                    },
+                    {
+                        "name": "Untrust",
+                        "properties": {
+                            "addressPrefix": "[parameters('Untrust_Subnet')]"
+                        }
+                    },
+                    {
+                        "name": "Trust",
+                        "properties": {
+                            "addressPrefix": "[parameters('Trust_Subnet')]"
+                        }
+                    }
+                ],
+                "virtualNetworkPeerings": [],
+                "enableDdosProtection": false,
+                "enableVmProtection": false
+            },
+            "dependsOn": [
+                "[resourceId('Microsoft.Network/networkSecurityGroups', parameters('Default_NSG'))]"
+            ]
+        }
+    ]
+}
