@@ -1,5 +1,7 @@
 ![alt_text](documentation/images/pan-logo-badge-green-dark-kick-up.png "logo")
 
+![alt_text](https://github.com/PaloAltoNetworks/Azure-Transit-VNet/blob/master/Azure-Transit-VNET-1.1/documentation/images/pan-logo-badge-green-dark-kick-up.png "logo")
+
 
 # VM-Series in Azure with Availability Zones
 
