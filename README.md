@@ -10,9 +10,9 @@ What are Availability Zones in Azure
 https://docs.microsoft.com/en-us/azure/availability-zones/az-overview
 
 
-This Template consists
+This Template consists of
 -   1 Resource Group
--	1 VM-Series Firewalls in an availability Zone
+-	1 VM-Series Firewall in an availability Zone
 -	1 Virtual Network
 -	3 Subnets MGT, Untrust and Trust
 -	2 Public IP Addresses both in Availability Zones
