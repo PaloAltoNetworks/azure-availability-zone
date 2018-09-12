@@ -4,7 +4,7 @@
 # VM-Series in Azure with Availability Zones
 
 
-This template deploys a VM-Series fireawll in Azure with Availability Zones. Any customization requirements can be accomplished by cloning the GitHub repo to your desktop. For more information on Azure Availability Zones please reference the link below. 
+This template deploys a VM-Series firewall in Azure with Availability Zones. Any customization requirements can be accomplished by cloning the GitHub repo to your desktop. For more information on Azure Availability Zones please reference the link below. 
 
 What are Availability Zones in Azure
 https://docs.microsoft.com/en-us/azure/availability-zones/az-overview
